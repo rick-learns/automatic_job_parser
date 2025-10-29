@@ -19,6 +19,9 @@ jobs:
         with:
           go-version: '1.21'
           
+      - name: Debug directory structure
+        run: ls -la && echo "---" && ls -la jobsite_golang/ && echo "---" && ls -la jobsite_golang/cmd/
+          
       - name: Build jobsite
         working-directory: ./jobsite_golang
         run: go build -o jobsite ./cmd/jobsite

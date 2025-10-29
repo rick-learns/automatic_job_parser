@@ -26,6 +26,13 @@ jobs:
         working-directory: ./jobsite_golang
         run: go build -o jobsite ./cmd/jobsite
         
+      - name: Create required directories
+        working-directory: ./jobsite_golang
+        run: |
+          mkdir -p data
+          mkdir -p public
+          mkdir -p public/latest
+        
       - name: Load environment and run daily update
         env:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}

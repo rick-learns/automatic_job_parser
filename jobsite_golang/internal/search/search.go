@@ -1,8 +1,10 @@
 package search
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -34,38 +36,64 @@ func hostAllowed(u *url.URL) bool {
 	return false
 }
 
-type serpResp struct {
-	OrganicResults []struct {
-		Link string `json:"link"`
-	} `json:"organic_results"`
+type serperRequest struct {
+	Query string `json:"q"`
+	Num   int    `json:"num"`
+	Start int    `json:"start"`
 }
 
-func SerpAPISearch(apiKey, q string, max int) ([]string, error) {
+type serperResponse struct {
+	Organic []struct {
+		Link string `json:"link"`
+	} `json:"organic"`
+}
+
+func SerpAPISearch(apiKey, q string, max int, start int) ([]string, error) {
 	if apiKey == "" {
-		return nil, errors.New("SERPAPI_API_KEY missing")
+		return nil, errors.New("SERPER_API missing")
 	}
+	
+	// Use Serper API instead of SerpAPI
 	client := &http.Client{Timeout: 20 * time.Second}
-	values := url.Values{
-		"engine":  {"google"},
-		"q":       {q},
-		"num":     {"20"},
-		"hl":      {"en"},
-		"gl":      {"us"},
-		"api_key": {apiKey},
+	
+	// Create JSON payload for Serper API
+	payload := serperRequest{
+		Query: q,
+		Num:   20,
+		Start: start,
 	}
-	req, _ := http.NewRequest("GET", "https://serpapi.com/search.json?"+values.Encode(), nil)
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	
+	req, err := http.NewRequest("POST", "https://google.serper.dev/search", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	
+	req.Header.Add("X-API-KEY", apiKey)
+	req.Header.Add("Content-Type", "application/json")
+	
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	var sr serpResp
-	if err := json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
 	}
+	
+	var sr serperResponse
+	if err := json.Unmarshal(body, &sr); err != nil {
+		return nil, err
+	}
+	
 	out := make([]string, 0, max)
 	seen := map[string]bool{}
-	for _, r := range sr.OrganicResults {
+	for _, r := range sr.Organic {
 		if r.Link == "" || seen[r.Link] {
 			continue
 		}

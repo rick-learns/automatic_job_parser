@@ -61,7 +61,7 @@ func main() {
 		mode = flag.Args()[0]
 	}
 
-	serpKey := os.Getenv("SERPAPI_API_KEY")
+	serpKey := os.Getenv("SERPER_API")
 	outDir := getenv("PUBLIC_DIR", "public")
 	if *outDirFlag != "" {
 		outDir = *outDirFlag
@@ -103,7 +103,7 @@ func main() {
 		runDaily(db, serpKey, queries, outDir, siteTitle, baseURL)
 	case "weekly":
 		// TODO: implement a weekly HTML writer; for now reuse daily with last 7 days
-		runDaily(db, serpKey, []string{}, outDir, siteTitle, baseURL)
+		runDaily(db, serpKey, []QueryConfig{}, outDir, siteTitle, baseURL)
 	case "seed":
 		loadSeed(db, outDir, siteTitle, baseURL)
 	default:
@@ -111,20 +111,30 @@ func main() {
 	}
 }
 
-func runDaily(db *store.DB, serpKey string, queries []string, outDir, siteTitle, baseURL string) {
+func runDaily(db *store.DB, serpKey string, queries []QueryConfig, outDir, siteTitle, baseURL string) {
 	newJobsCount := 0
 	updatedJobsCount := 0
 	seen := map[string]bool{}
 
-	for i, q := range queries {
-		log.Printf("Query %d/%d: %s", i+1, len(queries), q)
-		links, err := search.SerpAPISearch(serpKey, q, 20)
-		if err != nil {
-			log.Printf("search error: %v", err)
-			continue
+	for i, cfg := range queries {
+		log.Printf("Query %d/%d (Tier %d, %d pages): %s", i+1, len(queries), cfg.Tier, cfg.Pages, cfg.Query)
+		
+		// Fetch all pages for this query
+		var allLinks []string
+		for page := 0; page < cfg.Pages; page++ {
+			start := page * 20
+			links, err := search.SerpAPISearch(serpKey, cfg.Query, 20, start)
+			if err != nil {
+				log.Printf("search error on page %d: %v", page+1, err)
+				continue
+			}
+			allLinks = append(allLinks, links...)
+			log.Printf("Page %d/%d: Found %d links (total: %d)", page+1, cfg.Pages, len(links), len(allLinks))
 		}
-		log.Printf("Found %d links from query %d", len(links), i+1)
-		for _, link := range links {
+		
+		log.Printf("Total %d unique links from query %d (Tier %d)", len(allLinks), i+1, cfg.Tier)
+		
+		for _, link := range allLinks {
 			canon := normalize.CanonicalURL(link)
 			if seen[canon] {
 				continue
@@ -221,27 +231,41 @@ func sourceFromURL(u string) string {
 	}
 }
 
-func defaultQueries() []string {
-	return []string{
-		`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:myworkdayjobs.com OR site:jobs.smartrecruiters.com OR site:apply.workable.com) ("Senior Quality Engineer" OR SDET OR "QA Automation" OR "Software Development Engineer in Test" OR "Test Automation Engineer") (Appium OR Playwright OR "GitHub Actions" OR macOS OR iOS OR Android OR Golang) ("Remote" OR "United States" OR "US") -intern -internship -contract -temporary -freelance -agency`,
-		`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:myworkdayjobs.com OR site:jobs.smartrecruiters.com OR site:apply.workable.com) (Appium OR "Mobile QA" OR "iOS QA" OR "Android QA" OR "mobile test automation") ("Senior" OR Lead OR Staff OR "Quality Engineer" OR SDET) ("Remote" OR "United States" OR "US") -intern -contract -temporary`,
-		`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:myworkdayjobs.com OR site:jobs.smartrecruiters.com OR site:apply.workable.com) ("QA Automation" OR SDET OR "Quality Engineer") ("CI/CD" OR "continuous integration" OR "GitHub Actions" OR "release readiness" OR "risk-based testing") ("Remote" OR "United States" OR "US") -intern -contract -temporary`,
-		`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:myworkdayjobs.com OR site:jobs.smartrecruiters.com OR site:apply.workable.com) (macOS OR "desktop client" OR "endpoint agent" OR "device management") (QA OR "Quality Engineer" OR SDET OR "Test Automation") ("Remote" OR "United States" OR "US") -intern -contract -temporary`,
-		`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:myworkdayjobs.com OR site:jobs.smartrecruiters.com OR site:apply.workable.com) ("Quality Engineer" OR SDET OR "QA Automation" OR "Test Engineer") ("Wichita" OR "KS" OR "Kansas") -intern -internship -contract -temporary`,
+type QueryConfig struct {
+	Query string
+	Pages int
+	Tier  int
+}
+
+func defaultQueries() []QueryConfig {
+	return []QueryConfig{
+		// Optimized for 20-25 new jobs/day: 6 queries × 3 pages = 18 API calls
+		// 1. Core SDET/QA Automation - highest signal
+		{`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:apply.workable.com) ("Senior Quality Engineer" OR SDET OR "QA Automation" OR "Software Development Engineer in Test" OR "Test Automation Engineer") ("Remote" OR "United States" OR "US") -intern -internship -contract -temporary -freelance -agency`, 3, 1},
+		// 2. Mobile QA - Appium, iOS, Android focus  
+		{`(site:boards.greenhouse.io OR site:jobs.lever.co OR site:apply.workable.com) (Appium OR "Mobile QA" OR "iOS QA" OR "Android QA") (SDET OR "Quality Engineer" OR "QA Automation") ("Remote" OR "United States" OR "US") -intern -contract -temporary`, 3, 1},
+		// 3. Senior/Staff titles - high-value roles
+		{`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co) (intitle:Senior OR intitle:Staff OR intitle:Lead) (SDET OR "Quality Engineer" OR "QA Automation") ("Remote" OR "United States" OR "US") -intern -contract -temporary`, 3, 1},
+		// 4. Playwright web automation
+		{`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:apply.workable.com) (Playwright) (QA OR SDET OR "Test Automation" OR "Software Engineer in Test") ("Remote" OR "United States" OR "US") -intern -contract -temporary`, 3, 1},
+		// 5. macOS/Desktop/Endpoint testing
+		{`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co) (macOS OR "desktop client" OR "endpoint agent" OR "device management") (QA OR "Quality Engineer" OR SDET OR "Test Automation") ("Remote" OR "United States" OR "US") -intern -contract -temporary`, 3, 1},
+		// 6. CI/CD & GitHub Actions automation
+		{`(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co) ("QA Automation" OR SDET OR "Quality Engineer") ("CI/CD" OR "continuous integration" OR "GitHub Actions" OR "release readiness") ("Remote" OR "United States" OR "US") -intern -contract -temporary`, 3, 1},
 	}
 }
 
 // getQueries returns queries from JOBSITE_QUERIES env var or defaults
-func getQueries() []string {
+func getQueries() []QueryConfig {
 	envQueries := os.Getenv("JOBSITE_QUERIES")
 	if envQueries != "" {
 		// Split by comma and trim
 		parts := strings.Split(envQueries, ",")
-		queries := make([]string, 0, len(parts))
+		queries := make([]QueryConfig, 0, len(parts))
 		for _, part := range parts {
 			part = strings.TrimSpace(part)
 			if part != "" {
-				queries = append(queries, part)
+				queries = append(queries, QueryConfig{Query: part, Pages: 3, Tier: 1})
 			}
 		}
 		if len(queries) > 0 {

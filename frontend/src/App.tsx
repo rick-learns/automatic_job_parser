@@ -13,6 +13,8 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [remoteOnly, setRemoteOnly] = useState(false)
+  const [selectedDiscoveredDate, setSelectedDiscoveredDate] = useState<string | null>(null)
+  const [selectedPostedDate, setSelectedPostedDate] = useState<string | null>(null)
 
   // Debounce search query
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
@@ -59,9 +61,13 @@ function App() {
     const params = new URLSearchParams(window.location.search)
     const qParam = params.get('q')
     const remoteParam = params.get('remote')
+    const discoveredParam = params.get('discovered')
+    const postedParam = params.get('posted')
 
     if (qParam) setSearchQuery(qParam)
     if (remoteParam === '1') setRemoteOnly(true)
+    if (discoveredParam) setSelectedDiscoveredDate(discoveredParam)
+    if (postedParam) setSelectedPostedDate(postedParam)
   }, [])
 
   // Update URL when filters change
@@ -69,10 +75,28 @@ function App() {
     const params = new URLSearchParams()
     if (debouncedSearchQuery) params.set('q', debouncedSearchQuery)
     if (remoteOnly) params.set('remote', '1')
+    if (selectedDiscoveredDate) params.set('discovered', selectedDiscoveredDate)
+    if (selectedPostedDate) params.set('posted', selectedPostedDate)
 
     const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
     window.history.replaceState(null, '', newUrl)
-  }, [debouncedSearchQuery, remoteOnly])
+  }, [debouncedSearchQuery, remoteOnly, selectedDiscoveredDate, selectedPostedDate])
+
+  // Extract available dates from jobs
+  const availableDates = useMemo(() => {
+    const discoveredSet = new Set<string>()
+    const postedSet = new Set<string>()
+    
+    jobs.forEach(job => {
+      if (job.discovered_date) discoveredSet.add(job.discovered_date)
+      if (job.posted_date) postedSet.add(job.posted_date)
+    })
+    
+    return {
+      discovered: Array.from(discoveredSet).sort().reverse(),
+      posted: Array.from(postedSet).sort().reverse()
+    }
+  }, [jobs])
 
   // Precompute searchable text once per job
   const searchableJobs = useMemo(() => {
@@ -105,10 +129,16 @@ function App() {
         // Search filter
         if (needle && !searchableText.includes(needle)) return false
 
+        // Discovered date filter
+        if (selectedDiscoveredDate && job.discovered_date !== selectedDiscoveredDate) return false
+
+        // Posted date filter
+        if (selectedPostedDate && job.posted_date !== selectedPostedDate) return false
+
         return true
       })
       .map(({ job }) => job)
-  }, [searchableJobs, debouncedSearchQuery, remoteOnly])
+  }, [searchableJobs, debouncedSearchQuery, remoteOnly, selectedDiscoveredDate, selectedPostedDate])
 
   const handleRetry = () => {
     window.location.reload()
@@ -137,6 +167,11 @@ function App() {
             setSearchQuery={setSearchQuery}
             remoteOnly={remoteOnly}
             setRemoteOnly={setRemoteOnly}
+            selectedDiscoveredDate={selectedDiscoveredDate}
+            setSelectedDiscoveredDate={setSelectedDiscoveredDate}
+            selectedPostedDate={selectedPostedDate}
+            setSelectedPostedDate={setSelectedPostedDate}
+            availableDates={availableDates}
           />
 
           <div className="mb-4">

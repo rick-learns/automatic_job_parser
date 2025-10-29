@@ -112,7 +112,8 @@ func main() {
 }
 
 func runDaily(db *store.DB, serpKey string, queries []string, outDir, siteTitle, baseURL string) {
-	newJobs := []model.Job{}
+	newJobsCount := 0
+	updatedJobsCount := 0
 	seen := map[string]bool{}
 
 	for i, q := range queries {
@@ -149,10 +150,15 @@ func runDaily(db *store.DB, serpKey string, queries []string, outDir, siteTitle,
 				IsRemoteUS:     isRemote,
 				Tags:           "appium,playwright,ci-cd,macos,ios,android",
 			}
-			if err := store.InsertJob(db, j); err != nil {
+			stats, err := store.InsertJobWithStats(db, j)
+			if err != nil {
 				continue
 			}
-			newJobs = append(newJobs, j)
+			if stats.Inserted > 0 {
+				newJobsCount++
+			} else if stats.Updated > 0 {
+				updatedJobsCount++
+			}
 		}
 	}
 
@@ -160,7 +166,8 @@ func runDaily(db *store.DB, serpKey string, queries []string, outDir, siteTitle,
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Total new jobs added this run: %d", len(newJobs))
+	log.Printf("New jobs inserted this run: %d", newJobsCount)
+	log.Printf("Existing jobs updated this run: %d", updatedJobsCount)
 	log.Printf("Total jobs in database (last 7 days): %d", len(jobs))
 	dayDir, err := render.WriteDaily(outDir, siteTitle, baseURL, jobs)
 	if err != nil {

@@ -115,12 +115,14 @@ func runDaily(db *store.DB, serpKey string, queries []string, outDir, siteTitle,
 	newJobs := []model.Job{}
 	seen := map[string]bool{}
 
-	for _, q := range queries {
+	for i, q := range queries {
+		log.Printf("Query %d/%d: %s", i+1, len(queries), q)
 		links, err := search.SerpAPISearch(serpKey, q, 20)
 		if err != nil {
 			log.Printf("search error: %v", err)
 			continue
 		}
+		log.Printf("Found %d links from query %d", len(links), i+1)
 		for _, link := range links {
 			canon := normalize.CanonicalURL(link)
 			if seen[canon] {
@@ -158,6 +160,8 @@ func runDaily(db *store.DB, serpKey string, queries []string, outDir, siteTitle,
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("Total new jobs added this run: %d", len(newJobs))
+	log.Printf("Total jobs in database (last 7 days): %d", len(jobs))
 	dayDir, err := render.WriteDaily(outDir, siteTitle, baseURL, jobs)
 	if err != nil {
 		log.Fatal(err)

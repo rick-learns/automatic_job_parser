@@ -3,9 +3,10 @@
 .env.local
 .env.*.local
 
-# Built binary
-jobsite
+# Built binaries
+/jobsite
 jobsite_golang/jobsite
+jobsite.exe
 
 # Database files
 *.sqlite

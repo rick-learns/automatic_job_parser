@@ -72,7 +72,7 @@ jobs:
         
       - name: Load environment and run daily update
         env:
-          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          SERPER_API: ${{ secrets.SERPER_API }}
           BASE_URL: ${{ secrets.BASE_URL }}
           SITE_TITLE: ${{ secrets.SITE_TITLE }}
           PUBLIC_DIR: public

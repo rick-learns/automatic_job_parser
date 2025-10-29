@@ -14,6 +14,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         
+      - name: Check if workflow should run (14-day limit)
+        id: check_date
+        uses: actions/cache@v4
+        with:
+          path: .workflow-start-date
+          key: workflow-start-date-${{ github.ref }}
+      - name: Create start date marker if it doesn't exist
+        if: steps.check_date.outputs.cache-hit != 'true'
+        run: date +%s > .workflow-start-date
+      - name: Calculate days since start
+        id: days_check
+        run: |
+          if [ -f .workflow-start-date ]; then
+            START_DATE=$(cat .workflow-start-date)
+            CURRENT_DATE=$(date +%s)
+            DAYS_ELAPSED=$(( ($CURRENT_DATE - $START_DATE) / 86400 ))
+            echo "days_elapsed=$DAYS_ELAPSED" >> $GITHUB_OUTPUT
+            echo "Days elapsed: $DAYS_ELAPSED / 14"
+          else
+            echo "days_elapsed=0" >> $GITHUB_OUTPUT
+            echo "Days elapsed: 0 / 14"
+          fi
+      - name: Skip if 14 days have passed
+        if: steps.days_check.outputs.days_elapsed >= 14
+        run: |
+          echo "Workflow has been running for 14 days. Stopping execution."
+          echo "To resume, delete the workflow cache or run manually with workflow_dispatch."
+          exit 1
+        
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -51,6 +80,12 @@ jobs:
         working-directory: ./jobsite_golang
         run: |
           ./jobsite daily
+          
+      - name: Save start date marker to cache
+        uses: actions/cache@v4
+        with:
+          path: .workflow-start-date
+          key: workflow-start-date-${{ github.ref }}
           
       - name: Save database to cache
         uses: actions/cache@v4

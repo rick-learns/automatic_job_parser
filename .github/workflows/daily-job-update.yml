@@ -32,6 +32,14 @@ jobs:
           mkdir -p data
           mkdir -p public
           mkdir -p public/latest
+      
+      - name: Restore database from cache
+        uses: actions/cache@v4
+        with:
+          path: jobsite_golang/data/jobs.sqlite
+          key: jobsite-db-${{ github.ref }}
+          restore-keys: |
+            jobsite-db-${{ github.ref }}-
         
       - name: Load environment and run daily update
         env:
@@ -43,6 +51,12 @@ jobs:
         working-directory: ./jobsite_golang
         run: |
           ./jobsite daily
+          
+      - name: Save database to cache
+        uses: actions/cache@v4
+        with:
+          path: jobsite_golang/data/jobs.sqlite
+          key: jobsite-db-${{ github.ref }}-${{ github.run_number }}
           
       - name: Upload generated site
         uses: actions/upload-artifact@v4

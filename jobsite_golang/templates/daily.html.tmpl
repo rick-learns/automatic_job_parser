@@ -1,0 +1,59 @@
+<!doctype html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{.SiteTitle}} — {{.Day}}</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;line-height:1.45}
+table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:10px}
+th{background:#f7f7f7;text-align:left} tr:hover{background:#fafafa}
+.controls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+input[type="search"]{padding:8px;border:1px solid #ccc;border-radius:8px}
+.badge{padding:2px 8px;border-radius:12px;background:#eee;font-size:.85em;text-decoration:none;color:#333}
+</style>
+</head><body>
+<h1>{{.SiteTitle}} — {{.Day}}</h1>
+<div class="controls">
+  <input id="q" type="search" placeholder="Filter by title/company/keyword…">
+  <label><input type="checkbox" id="remoteOnly"> Remote-US</label>
+  <label><input type="checkbox" id="wichitaOnly"> Wichita/KS</label>
+  <label>Min salary: <input id="minSalary" type="number" step="1000" placeholder="120000"></label>
+  <a class="badge" href="./jobs.csv">CSV</a>
+  <a class="badge" href="./jobs.json">JSON</a>
+</div>
+<table id="jobs">
+<thead><tr><th>Job</th><th>Company</th><th>Location</th><th>Salary</th><th>Source</th><th>Discovered</th><th>Apply</th></tr></thead>
+<tbody>
+{{range .Jobs}}
+<tr data-remote="{{if .IsRemoteUS}}1{{else}}0{{end}}" data-salary-max="{{with .SalaryMaxUSD}}{{.}}{{end}}">
+  <td>{{.Title}}</td>
+  <td>{{.Company}}</td>
+  <td>{{.Location}}</td>
+  <td>{{.SalaryRaw}}</td>
+  <td>{{.Source}}</td>
+  <td>{{.DiscoveredDate}}</td>
+  <td><a href="{{.URL}}" target="_blank" rel="noopener">Apply</a></td>
+</tr>
+{{end}}
+</tbody>
+</table>
+<script>
+const q=document.getElementById('q'),remoteOnly=document.getElementById('remoteOnly'),
+wichitaOnly=document.getElementById('wichitaOnly'),minSalary=document.getElementById('minSalary');
+const rows=[...document.querySelectorAll('#jobs tbody tr')];
+function f(){
+  const s=(q.value||'').toLowerCase(); const ro=remoteOnly.checked; const wo=wichitaOnly.checked;
+  const min=parseInt(minSalary.value||'0',10);
+  rows.forEach(r=>{
+    const text=r.innerText.toLowerCase();
+    const remote=r.dataset.remote==='1';
+    const wichita=(r.cells[2].innerText.toLowerCase().includes('wichita')||r.cells[2].innerText.toLowerCase().includes(' ks'));
+    const salMax=parseInt(r.dataset.salaryMax||'0',10);
+    let ok=(!s || text.includes(s));
+    if(ro) ok=ok && remote;
+    if(wo) ok=ok && wichita;
+    if(min>0) ok=ok && (salMax>=min || isNaN(salMax));
+    r.style.display=ok?'':'none';
+  });
+}
+[q,remoteOnly,wichitaOnly,minSalary].forEach(el=>el.addEventListener('input',f));
+</script>
+</body></html>

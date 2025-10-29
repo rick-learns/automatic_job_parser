@@ -1,0 +1,16 @@
+[Unit]
+Description=Job Parser - Daily job scraping service
+After=network.target
+
+[Service]
+Type=oneshot
+User=rick
+WorkingDirectory=/home/rick/automatic_job_parser/jobsite_golang
+EnvironmentFile=/home/rick/automatic_job_parser/.env
+ExecStart=/home/rick/automatic_job_parser/jobsite_golang/jobsite daily
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

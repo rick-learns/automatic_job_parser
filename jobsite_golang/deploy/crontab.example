@@ -1,0 +1,18 @@
+# Jobsite cron example
+# Add to crontab: crontab deploy/crontab.example
+
+# Daily job update at 8:12 AM UTC
+12 8 * * * cd /home/rick/automatic_job_parser/jobsite_golang && ./jobsite daily >> /var/log/jobsite.log 2>&1
+
+# Weekly summary on Sundays at 11:55 PM UTC
+55 23 * * 0 cd /home/rick/automatic_job_parser/jobsite_golang && ./jobsite weekly >> /var/log/jobsite.log 2>&1
+
+# To install:
+#   crontab deploy/crontab.example
+#
+# To view:
+#   crontab -l
+#
+# To remove:
+#   crontab -r
+

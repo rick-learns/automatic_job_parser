@@ -1,0 +1,43 @@
+name: Daily Job Update
+
+on:
+  schedule:
+    # Run daily at 8:12 AM UTC (matches your cron schedule)
+    - cron: '12 8 * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  update-jobs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          
+      - name: Build jobsite
+        working-directory: ./jobsite_golang
+        run: go build -o jobsite ./cmd/jobsite
+        
+      - name: Load environment and run daily update
+        env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+          SITE_TITLE: ${{ secrets.SITE_TITLE }}
+          PUBLIC_DIR: public
+          DB_PATH: data/jobs.sqlite
+        working-directory: ./jobsite_golang
+        run: |
+          ./jobsite daily
+          
+      - name: Upload generated site
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-site
+          path: jobsite_golang/public/
+          retention-days: 30
+

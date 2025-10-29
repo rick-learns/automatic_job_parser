@@ -1,0 +1,62 @@
+# Environment variables with secrets
+.env
+.env.local
+.env.*.local
+
+# Built binary
+jobsite
+jobsite_golang/jobsite
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+data/
+jobsite.db
+
+# Frontend dependencies and artifacts
+frontend/node_modules/
+frontend/package-lock.json
+frontend/dist/
+
+# Generated public files (unless you want to track them)
+public/
+public/latest/*
+dist/
+coverage.out
+
+# Lock files
+*.lock
+tmp/
+temp/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+Thumbs.db
+.DS_Store
+

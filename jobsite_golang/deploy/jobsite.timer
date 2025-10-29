@@ -1,0 +1,13 @@
+[Unit]
+Description=Run jobsite daily at 8:12 AM
+Requires=jobsite.service
+
+[Timer]
+# Run daily at 8:12 AM UTC
+OnCalendar=daily
+OnCalendar=*-*-* 08:12:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+

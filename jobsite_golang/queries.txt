@@ -1,0 +1,3 @@
+# Tailored X-ray queries
+# Remote (US) — Senior QA/SDET, automation-first
+(site:boards.greenhouse.io OR site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:myworkdayjobs.com OR site:jobs.smartrecruiters.com OR site:apply.workable.com) ("Senior Quality Engineer" OR SDET OR "QA Automation" OR "Software Development Engineer in Test" OR "Test Automation Engineer") (Appium OR Playwright OR "GitHub Actions" OR macOS OR iOS OR Android OR Golang) ("Remote" OR "United States" OR "US") -intern -internship -contract -temporary -freelance -agency

@@ -21,7 +21,7 @@ jobs:
           
       - name: Build jobsite
         working-directory: ./jobsite_golang
-        run: go build -o jobsite cmd/jobsite/main.go
+        run: go build -o jobsite ./cmd/jobsite
         
       - name: Load environment and run daily update
         env:
